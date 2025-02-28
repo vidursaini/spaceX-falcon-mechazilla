@@ -22,7 +22,25 @@ let startButton = {
 };
 
 function setup() {
-  createCanvas(800, 600);
+  // Create responsive canvas
+  let canvasWidth, canvasHeight;
+  
+  if (isMobile) {
+    // For mobile, use responsive sizing
+    canvasWidth = windowWidth;
+    canvasHeight = windowHeight;
+    
+    // Set a minimum size to maintain playability
+    canvasWidth = max(canvasWidth, 320);
+    canvasHeight = max(canvasHeight, 480);
+  } else {
+    // For desktop, use fixed size
+    canvasWidth = 800;
+    canvasHeight = 600;
+  }
+  
+  createCanvas(canvasWidth, canvasHeight);
+  
   booster = new Booster();
   arms = new Arms();
   landingPad = new LandingPad();
@@ -32,10 +50,10 @@ function setup() {
   isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
   // Set up start button dimensions
-  startButton.width = 200;
+  startButton.width = min(200, width * 0.5);
   startButton.height = 60;
   startButton.x = width / 2 - startButton.width / 2;
-  startButton.y = height / 2 + 200;
+  startButton.y = height / 2 + 120;
 
   // Create stars
   for (let i = 0; i < 100; i++) {
@@ -50,6 +68,38 @@ function setup() {
   // Register touch event handlers
   if (isMobile) {
     registerTouchEvents();
+  }
+}
+
+// Add window resize handling
+function windowResized() {
+  let canvasWidth, canvasHeight;
+  
+  if (isMobile) {
+    // For mobile, use responsive sizing
+    canvasWidth = windowWidth;
+    canvasHeight = windowHeight;
+    
+    // Set a minimum size to maintain playability
+    canvasWidth = max(canvasWidth, 320);
+    canvasHeight = max(canvasHeight, 480);
+  } else {
+    // For desktop, use fixed size
+    canvasWidth = 800;
+    canvasHeight = 600;
+  }
+  
+  resizeCanvas(canvasWidth, canvasHeight);
+  
+  // Update start button position
+  startButton.width = min(200, width * 0.5);
+  startButton.x = width / 2 - startButton.width / 2;
+  startButton.y = height / 2 + 120;
+  
+  // Reposition stars
+  for (let i = 0; i < stars.length; i++) {
+    stars[i].x = random(width);
+    stars[i].y = random(height - 30);
   }
 }
 
@@ -77,16 +127,24 @@ function handleTouchStart(event) {
       gameState = "play";
     }
   } else if (gameState === "play") {
-    // Determine if left or right half was touched
-    if (x < width / 2) {
-      touchLeft = true;
-    } else {
-      touchRight = true;
-    }
+    // Check if touch is on the pole area (center of screen)
+    const poleLeftX = width / 2 - 40;
+    const poleRightX = width / 2 + 40;
     
-    // Trigger catch action if not already triggered this round
-    if (!spacePressedThisRound) {
-      touchCatch = true;
+    if (x >= poleLeftX && x <= poleRightX) {
+      // Touch on pole - trigger catch action
+      if (!spacePressedThisRound) {
+        touchCatch = true;
+      }
+    } else {
+      // Determine if left or right half was touched for movement
+      if (x < poleLeftX) {
+        touchLeft = true;
+        touchRight = false;
+      } else if (x > poleRightX) {
+        touchLeft = false;
+        touchRight = true;
+      }
     }
   } else if (gameState === "gameOver") {
     gameState = "title";
@@ -112,9 +170,17 @@ function handleTouchMove(event) {
     const rect = event.target.getBoundingClientRect();
     const x = touch.clientX - rect.left;
     
-    // Update touch direction based on which half of the screen is touched
-    touchLeft = x < width / 2;
-    touchRight = x >= width / 2;
+    // Check if touch is on the pole area (center of screen)
+    const poleLeftX = width / 2 - 40;
+    const poleRightX = width / 2 + 40;
+    
+    if (x >= poleLeftX && x <= poleRightX) {
+      // Don't change movement when touching the pole
+    } else {
+      // Update touch direction based on which half of the screen is touched
+      touchLeft = x < poleLeftX;
+      touchRight = x > poleRightX;
+    }
   }
 }
 
@@ -163,74 +229,86 @@ function drawWindIndicator() {
 /** Draws the centered vertical pole */
 function drawPole() {
   // Start tower just above catch zone
-  let poleStartY = 250;
+  let poleStartY = height * 0.4;
+  let poleWidth = width * 0.1;
+  let centerX = width / 2;
+  
+  // Calculate pole dimensions
+  let poleLeftX = centerX - poleWidth / 2;
+  let poleRightX = centerX + poleWidth / 2;
+  let poleHeight = height - poleStartY - 20;
 
   // Draw main tower structure
-  for (let i = 0; i < 30; i++) {
-    let shade = map(i, 0, 30, 100, 150);
+  for (let i = 0; i < poleWidth; i++) {
+    let shade = map(i, 0, poleWidth, 100, 150);
     fill(shade);
-    rect(385 + i, poleStartY, 2, 330); // Shorter height
+    rect(poleLeftX + i, poleStartY, 2, poleHeight);
   }
 
   // Add structural details to make it look like launch tower
   stroke(100);
   strokeWeight(1);
-  // Cross beams
-  for (let y = poleStartY + 50; y < 580; y += 70) {
-    line(380, y, 420, y);
-    line(380, y + 10, 420, y + 10);
+  
+  // Cross beams - space them evenly
+  let beamSpacing = poleHeight / 8;
+  for (let y = poleStartY + beamSpacing; y < height - 20; y += beamSpacing) {
+    line(poleLeftX - 5, y, poleRightX + 5, y);
+    line(poleLeftX - 5, y + 10, poleRightX + 5, y + 10);
   }
 
   // Vertical support lines
-  line(380, poleStartY, 380, 580);
-  line(420, poleStartY, 420, 580);
+  line(poleLeftX - 5, poleStartY, poleLeftX - 5, height - 20);
+  line(poleRightX + 5, poleStartY, poleRightX + 5, height - 20);
 
   // Base structure
   fill(120);
   noStroke();
-  rect(370, 580, 60, 20);
+  rect(poleLeftX - 15, height - 20, poleWidth + 30, 20);
 }
 
 /** Displays the title screen with instructions */
 function drawTitle() {
   fill(255);
   textAlign(CENTER, CENTER);
-  textSize(48);
+  
+  // Responsive text sizes
+  let titleSize = min(48, width / 16);
+  let instructionSize = min(24, width / 32);
+  let smallTextSize = min(18, width / 42);
+  
+  textSize(titleSize);
   text("Falcon Landing Simulator", width / 2, height / 3);
 
-  textSize(24);
-  
+  textSize(instructionSize);
   if (isMobile) {
-    text("Touch left/right side to move", width / 2, height / 2);
-    text("Tap anywhere to catch at the right moment", width / 2, height / 2 + 40);
+    text("Touch left/right side to move", width / 2, height / 2 - 40);
+    text("Touch the pole to catch at the right moment", width / 2, height / 2);
+    text("Land in the green zone when arms are closed", width / 2, height / 2 + 40);
   } else {
-    text("Use ← → to move the booster", width / 2, height / 2);
-    text("Press SPACE to catch at the right moment", width / 2, height / 2 + 40);
-  }
-  
-  text(
-    "Align the red dot with the red target rectangle",
-    width / 2,
-    height / 2 + 80
-  );
-  text(
-    "Land in the green zone when arms are closed",
-    width / 2,
-    height / 2 + 120
-  );
-  
-  if (isMobile) {
-    // Draw start button
-    fill(50, 150, 255);
-    rect(startButton.x, startButton.y, startButton.width, startButton.height, 10);
-    fill(255);
-    textSize(28);
-    text("START", width / 2, startButton.y + startButton.height/2);
-  } else {
-    text("Press any key to start", width / 2, height / 2 + 160);
+    text("Use LEFT/RIGHT arrows to move", width / 2, height / 2 - 40);
+    text("Press SPACE to catch at the right moment", width / 2, height / 2);
+    text("Land in the green zone when arms are closed", width / 2, height / 2 + 40);
   }
 
-  if (keyIsPressed && !isMobile) {
+  // Draw start button
+  fill(30, 144, 255);
+  rect(startButton.x, startButton.y, startButton.width, startButton.height, 10);
+  
+  fill(255);
+  textSize(min(32, width / 24));
+  text("START", width / 2, startButton.y + startButton.height / 2);
+  
+  // Draw share button
+  let shareButtonY = startButton.y + startButton.height + 20;
+  fill(29, 161, 242); // Twitter blue
+  rect(width / 2 - startButton.width / 2, shareButtonY, startButton.width, 40, 10);
+  
+  fill(255);
+  textSize(smallTextSize);
+  text("Share Your Score on X", width / 2, shareButtonY + 20);
+  
+  // Handle keyboard input for desktop
+  if (!isMobile && keyIsPressed) {
     gameState = "play";
   }
 }
@@ -311,14 +389,20 @@ function playGame() {
 function drawGameOver() {
   fill(255);
   textAlign(CENTER, CENTER);
-  textSize(48);
+  
+  // Responsive text sizes
+  let titleSize = min(48, width / 16);
+  let scoreSize = min(32, width / 24);
+  let instructionSize = min(24, width / 32);
+  
+  textSize(titleSize);
   text("GAME OVER", width / 2, height / 3);
 
-  textSize(32);
+  textSize(scoreSize);
   text("Score: " + score, width / 2, height / 2 - 20);
   text("High Score: " + highScore, width / 2, height / 2 + 20);
 
-  textSize(24);
+  textSize(instructionSize);
   if (isMobile) {
     text("Tap anywhere to restart", width / 2, height / 2 + 80);
   } else {
@@ -339,7 +423,7 @@ class LandingPad {
   constructor() {
     this.width = width;
     this.height = 20;
-    this.y = 580;
+    this.y = height - this.height;
   }
 
   display() {
@@ -349,36 +433,50 @@ class LandingPad {
 
     // Draw landing markings
     fill(30, 30, 30);
-    for (let i = 0; i < width; i += 40) {
-      rect(i, this.y, 20, this.height);
+    let markingWidth = width / 20;
+    for (let i = 0; i < width; i += markingWidth * 2) {
+      rect(i, this.y, markingWidth, this.height);
     }
 
     // Draw SpaceX-style landing pad
+    let centerX = width / 2;
+    let padWidth = width * 0.25;
+    
     fill(80);
-    ellipse(400, this.y, 100, 10); // Center landing pad
+    ellipse(centerX, this.y, padWidth, 10); // Center landing pad
 
     // Draw landing pad markings
     fill(255);
-    rect(370, this.y - 2, 60, 4);
+    rect(centerX - padWidth * 0.3, this.y - 2, padWidth * 0.6, 4);
 
     // Draw "X" marking
     stroke(255);
     strokeWeight(3);
-    line(390, this.y - 5, 410, this.y + 5);
-    line(410, this.y - 5, 390, this.y + 5);
+    let xSize = padWidth * 0.1;
+    line(centerX - xSize, this.y - 5, centerX + xSize, this.y + 5);
+    line(centerX + xSize, this.y - 5, centerX - xSize, this.y + 5);
     noStroke();
   }
 }
 
 class Arms {
   constructor() {
-    this.y = 300;
+    this.y = height * 0.5;
     this.height = 20; // Reduced height for cleaner look
     this.isOpen = true;
-    this.leftX = 280; // Start position for left side
-    this.rightX = 520; // Start position for right side
+    
+    // Calculate positions based on screen width
+    let centerX = width / 2;
+    let openWidth = width * 0.3;
+    
+    this.leftX = centerX - openWidth; // Start position for left side
+    this.rightX = centerX + openWidth; // Start position for right side
     this.targetLeftX = this.leftX;
     this.targetRightX = this.rightX;
+    
+    // Closed position is near the pole
+    this.closedLeftX = centerX - width * 0.05;
+    this.closedRightX = centerX + width * 0.05;
   }
 
   display() {
@@ -387,11 +485,11 @@ class Arms {
 
     // Animate arm movement
     if (this.isOpen) {
-      this.targetLeftX = 280; // Open position
-      this.targetRightX = 520; // Open position
+      this.targetLeftX = width / 2 - width * 0.3; // Open position
+      this.targetRightX = width / 2 + width * 0.3; // Open position
     } else {
-      this.targetLeftX = 380; // Closed position
-      this.targetRightX = 420; // Closed position
+      this.targetLeftX = this.closedLeftX; // Closed position
+      this.targetRightX = this.closedRightX; // Closed position
     }
 
     // Smooth movement
@@ -422,8 +520,10 @@ class Arms {
 
 class CatchZoneIndicator {
   constructor() {
-    this.y = 300;
+    this.y = height * 0.5;
     this.height = 20; // Match arms height
+    this.width = width * 0.1;
+    this.x = width / 2 - this.width / 2;
   }
 
   display() {
@@ -431,12 +531,12 @@ class CatchZoneIndicator {
     noFill();
     stroke(0, 255, 0, 100);
     strokeWeight(2);
-    rect(380, this.y, 40, this.height);
+    rect(this.x, this.y, this.width, this.height);
 
     // Draw red target area
     fill(255, 0, 0, 100);
     stroke(255, 0, 0);
-    rect(380, this.y - 2, 40, this.height + 4); // Cover entire catch zone width
+    rect(this.x, this.y - 2, this.width, this.height + 4); // Cover entire catch zone width
 
     strokeWeight(1);
   }
@@ -445,18 +545,19 @@ class CatchZoneIndicator {
     return (
       booster.y + booster.catchingOffset >= this.y &&
       booster.y + booster.catchingOffset <= this.y + this.height &&
-      booster.x + booster.width / 2 > 380 &&
-      booster.x + booster.width / 2 < 420
+      booster.x + booster.width / 2 > this.x &&
+      booster.x + booster.width / 2 < this.x + this.width
     );
   }
 }
 
 class Booster {
   constructor() {
-    this.width = 50;
-    this.height = 250;
-    this.catchingOffset = 50; // Catching point at y + 50 (top half)
-    this.x = random(50, width - 100); // Random x-position at top
+    // Make booster size relative to screen size
+    this.width = width * 0.06;
+    this.height = height * 0.4;
+    this.catchingOffset = this.height * 0.2; // Catching point at y + 20% (top half)
+    this.x = random(this.width, width - this.width * 2); // Random x-position at top
     this.y = -this.height; // Start above canvas
     this.vy = 2 + min(score * 0.15, 3); // Faster speed increase
     this.fireParticles = [];
@@ -466,19 +567,27 @@ class Booster {
     // Apply wind force
     this.x += windForce;
 
+    // Movement speed based on screen width
+    let moveSpeed = 5;
+    if (width > 800) {
+      moveSpeed = 5;
+    } else {
+      moveSpeed = width * 0.006;
+    }
+
     if (!isMobile) {
       // Desktop controls
-      if (keyIsDown(LEFT_ARROW)) {
-        this.x -= 5;
-      } else if (keyIsDown(RIGHT_ARROW)) {
-        this.x += 5;
+      if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) { // Left arrow or A key
+        this.x -= moveSpeed;
+      } else if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) { // Right arrow or D key
+        this.x += moveSpeed;
       }
     } else {
       // Mobile controls
       if (touchLeft) {
-        this.x -= 5;
+        this.x -= moveSpeed;
       } else if (touchRight) {
-        this.x += 5;
+        this.x += moveSpeed;
       }
     }
 
@@ -490,9 +599,9 @@ class Booster {
     // Add new fire particles
     for (let i = 0; i < 3; i++) {
       this.fireParticles.push({
-        x: this.x + this.width / 2 + random(-15, 15),
+        x: this.x + this.width / 2 + random(-this.width/3, this.width/3),
         y: this.y + this.height,
-        size: random(5, 15),
+        size: random(this.width/10, this.width/3),
         vx: random(-0.5, 0.5),
         vy: random(2, 5),
         alpha: 255,
@@ -523,49 +632,46 @@ class Booster {
 
     // Draw booster body with SpaceX-style design
     fill(240); // White body like Falcon 9
-    rect(this.x, this.y, this.width, this.height - 20); // Main body
+    rect(this.x, this.y, this.width, this.height - this.height/12); // Main body
 
     // SpaceX logo
     fill(0);
-    textSize(12);
+    textSize(max(12, this.width/4));
     textAlign(CENTER);
-    text("SpaceX", this.x + this.width / 2, this.y + 30);
+    text("SpaceX", this.x + this.width / 2, this.y + this.height/8);
 
     // Draw details - black stripes like Falcon 9
     fill(30);
-    rect(this.x, this.y + 50, this.width, 10); // Black stripe
-    rect(this.x, this.y + 120, this.width, 10); // Black stripe
-    rect(this.x, this.y + 190, this.width, 10); // Black stripe
+    rect(this.x, this.y + this.height/5, this.width, this.height/25); // Black stripe
+    rect(this.x, this.y + this.height/2.5, this.width, this.height/25); // Another stripe
 
-    // Grid fins
+    // Draw grid fins
+    fill(120);
+    // Left fin
+    rect(this.x - this.width/6, this.y + this.height/10, this.width/6, this.height/15);
+    // Right fin
+    rect(this.x + this.width, this.y + this.height/10, this.width/6, this.height/15);
+
+    // Draw landing legs (folded)
     fill(80);
-    // Left grid fin
-    rect(this.x - 10, this.y + 60, 10, 30);
-    // Right grid fin
-    rect(this.x + this.width, this.y + 60, 10, 30);
-
-    // Draw engine section
-    fill(50); // Dark gray engines
-    rect(this.x - 10, this.y + this.height - 20, this.width + 20, 20); // Engine base
+    rect(this.x - this.width/10, this.y + this.height - this.height/12, this.width/10, this.height/12);
+    rect(this.x + this.width, this.y + this.height - this.height/12, this.width/10, this.height/12);
 
     // Draw engine nozzles
-    fill(30);
-    for (let i = -15; i <= 15; i += 10) {
-      ellipse(this.x + this.width / 2 + i, this.y + this.height - 10, 8, 8); // Nozzles
-    }
+    fill(150);
+    let nozzleWidth = this.width / 3;
+    let nozzleHeight = this.height / 15;
+    ellipse(this.x + this.width/2, this.y + this.height, nozzleWidth, nozzleHeight);
 
-    // Draw top interstage circle
-    fill(200);
-    ellipse(this.x + this.width / 2, this.y, 5, 5); // Top circle
+    // Draw the red dot for catching point
+    fill(255, 0, 0);
+    ellipse(this.x + this.width/2, this.y + this.catchingOffset, 8, 8);
 
     pop(); // Restore drawing state
-
-    // Draw catching point
-    fill(255, 0, 0); // Red
-    ellipse(this.x + this.width / 2, this.y + this.catchingOffset, 10, 10); // Catching marker
   }
 
   drawFireParticles() {
+    // Draw all fire particles
     noStroke();
     for (let p of this.fireParticles) {
       fill(p.color[0], p.color[1], p.color[2], p.alpha);
