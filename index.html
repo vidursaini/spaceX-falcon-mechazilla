@@ -1,82 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Falcon Landing Simulator</title>
-    <meta name="description" content="Land your Falcon 9 booster like a SpaceX pro! Test your skills in this addictive rocket landing game.">
+    <meta
+      name="description"
+      content="Land your Falcon 9 booster like a SpaceX pro! Test your skills in this addictive rocket landing game."
+    />
     <!-- Open Graph / Twitter Card data for better social sharing -->
-    <meta property="og:title" content="Falcon Landing Simulator">
-    <meta property="og:description" content="I scored points in this SpaceX-inspired rocket landing game! Can you beat my score? #FalconLanding">
-    <meta property="og:type" content="website">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Falcon Landing Simulator">
-    <meta name="twitter:description" content="Land your Falcon 9 booster like a SpaceX pro! Can you beat my score?">
-    
+    <meta property="og:title" content="Falcon Landing Simulator" />
+    <meta
+      property="og:description"
+      content="I scored points in this SpaceX-inspired rocket landing game! Can you beat my score? #FalconLanding"
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Falcon Landing Simulator" />
+    <meta
+      name="twitter:description"
+      content="Land your Falcon 9 booster like a SpaceX pro! Can you beat my score?"
+    />
+
     <!-- Load p5.js from the online CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.js"></script>
-    
+
     <!-- Custom styles -->
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #000;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-            touch-action: none; /* Prevents browser handling of touch gestures */
-        }
-        canvas {
-            display: block;
-            margin: 0 auto;
-            border: 1px solid #333;
-        }
-        #share-container {
-            position: absolute;
-            bottom: 10px;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            color: white;
-            font-size: 14px;
-        }
-        .share-button {
-            background-color: #1DA1F2;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            margin: 5px;
-        }
-        .share-button:hover {
-            background-color: #0d8bd9;
-        }
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #000;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+        touch-action: none; /* Prevents browser handling of touch gestures */
+      }
+      canvas {
+        display: block;
+        margin: 0 auto;
+        border: 1px solid #333;
+      }
+      #share-container {
+        position: absolute;
+        bottom: 10px;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        color: white;
+        font-size: 14px;
+      }
+      .share-button {
+        background-color: #1da1f2;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        margin: 5px;
+      }
+      .share-button:hover {
+        background-color: #0d8bd9;
+      }
+      #leaderboardForm {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(10, 10, 40, 0.9);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        display: none;
+        z-index: 10;
+        width: 300px;
+      }
+      #leaderboardForm input {
+        width: 100%;
+        padding: 8px;
+        margin: 10px 0;
+        border-radius: 5px;
+        border: none;
+      }
+      #leaderboardForm button {
+        background-color: #1e90ff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      #leaderboardForm button:hover {
+        background-color: #0066cc;
+      }
+      #leaderboardDisplay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(10, 10, 40, 0.9);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        display: none;
+        z-index: 10;
+        width: 80%;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .leaderboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      .leaderboard-table th,
+      .leaderboard-table td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #444;
+      }
+      .leaderboard-table th {
+        background-color: #1e90ff;
+        color: white;
+      }
+      .leaderboard-table tr:nth-child(even) {
+        background-color: rgba(30, 30, 60, 0.5);
+      }
+      .close-button {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+      }
     </style>
-    
+
     <!-- Load your game script -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="sketch.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div id="share-container">
-        <button class="share-button" onclick="shareScore()">Share Your Score on X</button>
+      <button class="share-button" onclick="shareScore()">
+        Share Your Score on X
+      </button>
+    </div>
+
+    <div id="leaderboardForm">
+      <h2>Submit Your Score</h2>
+      <p>Score: <span id="finalScore">0</span></p>
+      <input type="email" id="playerEmail" placeholder="Your Email" required />
+      <input type="text" id="playerName" placeholder="Your Name (optional)" />
+      <button id="submitScore">Submit Score</button>
+      <button id="skipSubmission">Skip</button>
+      <button id="viewLeaderboard">View Leaderboard</button>
+    </div>
+
+    <div id="leaderboardDisplay">
+      <button class="close-button" id="closeLeaderboard">×</button>
+      <h2>Top Scores</h2>
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Name</th>
+            <th>Score</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardBody">
+          <!-- Leaderboard entries will be inserted here -->
+        </tbody>
+      </table>
+      <button id="returnToGame" style="margin-top: 20px">Return to Game</button>
     </div>
 
     <script>
-        function shareScore() {
-            let scoreText = "I scored " + (typeof highScore !== 'undefined' ? highScore : 0) + 
-                " points in Falcon Landing Simulator! Can you do better? #SpaceX #FalconLanding";
-            
-            let gameUrl = "https://vidursaini.github.io/spaceX-falcon-mechazilla/";
-            let shareUrl = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(scoreText) + 
-                           "&url=" + encodeURIComponent(gameUrl);
-            window.open(shareUrl, "_blank");
-        }
+      function shareScore() {
+        let scoreText =
+          "I scored " +
+          (typeof highScore !== "undefined" ? highScore : 0) +
+          " points in Falcon Landing Simulator! Can you do better?";
+
+        let gameUrl = "https://vidursaini.github.io/spaceX-falcon-mechazilla/";
+        let shareUrl =
+          "https://twitter.com/intent/tweet?text=" +
+          encodeURIComponent(scoreText) +
+          "&url=" +
+          encodeURIComponent(gameUrl);
+        window.open(shareUrl, "_blank");
+      }
+
+      // Check if Supabase is loaded correctly
+      window.addEventListener("load", function () {
+        console.log("Supabase library loaded:", typeof window.supabase);
+        console.log(
+          "Supabase createClient available:",
+          typeof window.supabase?.createClient
+        );
+      });
     </script>
-</body>
+  </body>
 </html>

@@ -18,18 +18,28 @@ let startButton = {
   x: 0,
   y: 0,
   width: 0,
-  height: 0
+  height: 0,
 };
+
+// Initialize Supabase client
+const supabaseUrl = "https://zbiielbjamsltdowvsxf.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiaWllbGJqYW1zbHRkb3d2c3hmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA3NDMyMzEsImV4cCI6MjA1NjMxOTIzMX0._pPwVFkh1Jz-QIRQG_lRLvb6Rn54zBS4KHXo-EUkWMg";
+let supabase = null;
+
+// Leaderboard state
+let showingLeaderboard = false;
+let showingLeaderboardForm = false;
 
 function setup() {
   // Create responsive canvas
   let canvasWidth, canvasHeight;
-  
+
   if (isMobile) {
     // For mobile, use responsive sizing
     canvasWidth = windowWidth;
     canvasHeight = windowHeight;
-    
+
     // Set a minimum size to maintain playability
     canvasWidth = max(canvasWidth, 320);
     canvasHeight = max(canvasHeight, 480);
@@ -38,17 +48,20 @@ function setup() {
     canvasWidth = 800;
     canvasHeight = 600;
   }
-  
+
   createCanvas(canvasWidth, canvasHeight);
-  
+
   booster = new Booster();
   arms = new Arms();
   landingPad = new LandingPad();
   catchZoneIndicator = new CatchZoneIndicator();
-  
+
   // Check if device is mobile
-  isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
+  isMobile =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+
   // Set up start button dimensions
   startButton.width = min(200, width * 0.5);
   startButton.height = 60;
@@ -64,22 +77,179 @@ function setup() {
       brightness: random(150, 255),
     });
   }
-  
+
   // Register touch event handlers
   if (isMobile) {
     registerTouchEvents();
+  }
+
+  // Initialize Supabase client
+  try {
+    console.log("Initializing Supabase client...");
+    // Create Supabase client
+    supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    console.log("Supabase client created successfully");
+    setupLeaderboardListeners();
+  } catch (error) {
+    console.error("Error initializing Supabase:", error);
+    showingLeaderboard = false;
+    showingLeaderboardForm = false;
+  }
+}
+
+// Set up event listeners for leaderboard UI
+function setupLeaderboardListeners() {
+  // Get DOM elements
+  const leaderboardForm = document.getElementById("leaderboardForm");
+  const leaderboardDisplay = document.getElementById("leaderboardDisplay");
+  const finalScoreElement = document.getElementById("finalScore");
+  const submitButton = document.getElementById("submitScore");
+  const skipButton = document.getElementById("skipSubmission");
+  const viewLeaderboardButton = document.getElementById("viewLeaderboard");
+  const closeLeaderboardButton = document.getElementById("closeLeaderboard");
+  const returnToGameButton = document.getElementById("returnToGame");
+
+  // Submit score button
+  submitButton.addEventListener("click", async () => {
+    const playerEmail = document.getElementById("playerEmail").value;
+    const playerName =
+      document.getElementById("playerName").value || "Anonymous";
+
+    if (!playerEmail) {
+      alert("Please enter your email");
+      return;
+    }
+
+    try {
+      await submitScore(playerEmail, playerName, score);
+      leaderboardForm.style.display = "none";
+      showingLeaderboardForm = false;
+      fetchAndDisplayLeaderboard();
+      leaderboardDisplay.style.display = "block";
+      showingLeaderboard = true;
+    } catch (error) {
+      console.error("Error submitting score:", error);
+      alert("Failed to submit score. Please try again.");
+    }
+  });
+
+  // Skip submission button
+  skipButton.addEventListener("click", () => {
+    leaderboardForm.style.display = "none";
+    showingLeaderboardForm = false;
+    gameState = "title";
+    score = 0;
+    booster = new Booster();
+    arms.reset();
+  });
+
+  // View leaderboard button
+  viewLeaderboardButton.addEventListener("click", () => {
+    leaderboardForm.style.display = "none";
+    showingLeaderboardForm = false;
+    fetchAndDisplayLeaderboard();
+    leaderboardDisplay.style.display = "block";
+    showingLeaderboard = true;
+  });
+
+  // Close leaderboard button
+  closeLeaderboardButton.addEventListener("click", () => {
+    leaderboardDisplay.style.display = "none";
+    showingLeaderboard = false;
+    gameState = "title";
+    score = 0;
+    booster = new Booster();
+    arms.reset();
+  });
+
+  // Return to game button
+  returnToGameButton.addEventListener("click", () => {
+    leaderboardDisplay.style.display = "none";
+    showingLeaderboard = false;
+    gameState = "title";
+    score = 0;
+    booster = new Booster();
+    arms.reset();
+  });
+}
+
+// Submit score to Supabase
+async function submitScore(email, name, playerScore) {
+  try {
+    console.log("Submitting score:", email, name, playerScore);
+
+    const { data, error } = await supabase.from("leaderboard").insert([
+      {
+        player_email: email,
+        player_name: name,
+        score: playerScore,
+      },
+    ]);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      throw error;
+    }
+
+    console.log("Score submitted successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error submitting score:", error);
+    throw error;
+  }
+}
+
+// Fetch leaderboard data from Supabase
+async function fetchAndDisplayLeaderboard() {
+  try {
+    const { data, error } = await supabase
+      .from("leaderboard")
+      .select("*")
+      .order("score", { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    // Display the leaderboard data
+    const leaderboardBody = document.getElementById("leaderboardBody");
+    leaderboardBody.innerHTML = "";
+
+    if (data.length === 0) {
+      const row = document.createElement("tr");
+      row.innerHTML = '<td colspan="4">No scores yet. Be the first!</td>';
+      leaderboardBody.appendChild(row);
+    } else {
+      data.forEach((entry, index) => {
+        const row = document.createElement("tr");
+        const date = new Date(entry.created_at).toLocaleDateString();
+
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${entry.player_name || "Anonymous"}</td>
+          <td>${entry.score}</td>
+          <td>${date}</td>
+        `;
+
+        leaderboardBody.appendChild(row);
+      });
+    }
+  } catch (error) {
+    console.error("Error fetching leaderboard:", error);
+    const leaderboardBody = document.getElementById("leaderboardBody");
+    leaderboardBody.innerHTML =
+      '<tr><td colspan="4">Failed to load leaderboard. Please try again later.</td></tr>';
   }
 }
 
 // Add window resize handling
 function windowResized() {
   let canvasWidth, canvasHeight;
-  
+
   if (isMobile) {
     // For mobile, use responsive sizing
     canvasWidth = windowWidth;
     canvasHeight = windowHeight;
-    
+
     // Set a minimum size to maintain playability
     canvasWidth = max(canvasWidth, 320);
     canvasHeight = max(canvasHeight, 480);
@@ -88,14 +258,14 @@ function windowResized() {
     canvasWidth = 800;
     canvasHeight = 600;
   }
-  
+
   resizeCanvas(canvasWidth, canvasHeight);
-  
+
   // Update start button position
   startButton.width = min(200, width * 0.5);
   startButton.x = width / 2 - startButton.width / 2;
   startButton.y = height / 2 + 120;
-  
+
   // Reposition stars
   for (let i = 0; i < stars.length; i++) {
     stars[i].x = random(width);
@@ -105,32 +275,36 @@ function windowResized() {
 
 function registerTouchEvents() {
   // Add touch event listeners
-  let canvasElement = document.querySelector('canvas');
-  canvasElement.addEventListener('touchstart', handleTouchStart, false);
-  canvasElement.addEventListener('touchend', handleTouchEnd, false);
-  canvasElement.addEventListener('touchmove', handleTouchMove, false);
+  let canvasElement = document.querySelector("canvas");
+  canvasElement.addEventListener("touchstart", handleTouchStart, false);
+  canvasElement.addEventListener("touchend", handleTouchEnd, false);
+  canvasElement.addEventListener("touchmove", handleTouchMove, false);
 }
 
 function handleTouchStart(event) {
   event.preventDefault();
-  
+
   // Get touch coordinates
   const touch = event.touches[0];
   const rect = event.target.getBoundingClientRect();
   const x = touch.clientX - rect.left;
   const y = touch.clientY - rect.top;
-  
+
   if (gameState === "title") {
     // Check if start button was pressed
-    if (x >= startButton.x && x <= startButton.x + startButton.width &&
-        y >= startButton.y && y <= startButton.y + startButton.height) {
+    if (
+      x >= startButton.x &&
+      x <= startButton.x + startButton.width &&
+      y >= startButton.y &&
+      y <= startButton.y + startButton.height
+    ) {
       gameState = "play";
     }
   } else if (gameState === "play") {
     // Check if touch is on the pole area (center of screen)
     const poleLeftX = width / 2 - 40;
     const poleRightX = width / 2 + 40;
-    
+
     if (x >= poleLeftX && x <= poleRightX) {
       // Touch on pole - trigger catch action
       if (!spacePressedThisRound) {
@@ -163,17 +337,17 @@ function handleTouchEnd(event) {
 
 function handleTouchMove(event) {
   event.preventDefault();
-  
+
   if (gameState === "play") {
     // Get touch coordinates
     const touch = event.touches[0];
     const rect = event.target.getBoundingClientRect();
     const x = touch.clientX - rect.left;
-    
+
     // Check if touch is on the pole area (center of screen)
     const poleLeftX = width / 2 - 40;
     const poleRightX = width / 2 + 40;
-    
+
     if (x >= poleLeftX && x <= poleRightX) {
       // Don't change movement when touching the pole
     } else {
@@ -185,6 +359,11 @@ function handleTouchMove(event) {
 }
 
 function draw() {
+  if (showingLeaderboard || showingLeaderboardForm) {
+    // Don't draw game elements when showing leaderboard
+    return;
+  }
+
   drawBackground();
   drawPole();
   if (gameState === "title") {
@@ -193,6 +372,15 @@ function draw() {
     playGame();
   } else if (gameState === "gameOver") {
     drawGameOver();
+
+    // Show leaderboard form after a short delay
+    if (!showingLeaderboardForm) {
+      setTimeout(() => {
+        document.getElementById("finalScore").textContent = score;
+        document.getElementById("leaderboardForm").style.display = "block";
+        showingLeaderboardForm = true;
+      }, 1000);
+    }
   }
 }
 
@@ -233,29 +421,29 @@ function drawPole() {
   const poleHeight = height * 0.7;
   const poleLeftX = width / 2 - poleWidth / 2;
   const poleRightX = poleLeftX + poleWidth;
-  
+
   // Draw pole with gradient for 3D effect
   push();
   noStroke();
-  
+
   // Main pole - coming from the bottom
   fill(150);
   rect(poleLeftX, height - poleHeight, poleWidth, poleHeight);
-  
+
   // Highlight on left edge
   fill(200);
   rect(poleLeftX, height - poleHeight, 3, poleHeight);
-  
+
   // Shadow on right edge
   fill(100);
   rect(poleRightX - 3, height - poleHeight, 3, poleHeight);
-  
+
   // Add some details/rungs to the pole
   fill(100);
   for (let y = height - poleHeight + 50; y < height; y += 50) {
     rect(poleLeftX - 5, y, poleWidth + 10, 5);
   }
-  
+
   // Base structure
   fill(120);
   noStroke();
@@ -265,53 +453,118 @@ function drawPole() {
 
 /** Displays the title screen with instructions */
 function drawTitle() {
+  // Create a semi-transparent overlay for better text readability
+  fill(10, 10, 40, 200);
+  rect(0, 0, width, height);
+
   fill(255);
   textAlign(CENTER, CENTER);
-  
+
   // Responsive text sizes
   let titleSize = min(48, width / 16);
-  let instructionSize = min(24, width / 32);
+  let instructionSize = min(22, width / 36);
   let smallTextSize = min(18, width / 42);
-  
-  textSize(titleSize);
-  text("Falcon Landing Simulator", width / 2, height / 3);
 
+  // Draw title with shadow for better visibility
+  push();
+  fill(30, 144, 255);
+  textSize(titleSize);
+  textStyle(BOLD);
+  text("Falcon Landing Simulator", width / 2, height / 3);
+  pop();
+
+  // Draw instruction panel with background - make it wider
+  fill(0, 0, 30, 200);
+  rect(width / 2 - 300, height / 2 - 70, 600, 140, 10);
+
+  fill(255);
   textSize(instructionSize);
   if (isMobile) {
     text("Touch left/right side to move", width / 2, height / 2 - 40);
     text("Touch the pole to catch at the right moment", width / 2, height / 2);
-    text("Land in the green zone when arms are closed", width / 2, height / 2 + 40);
+    text(
+      "Land in the green zone when arms are closed",
+      width / 2,
+      height / 2 + 40
+    );
   } else {
     text("Use LEFT/RIGHT arrows to move", width / 2, height / 2 - 40);
     text("Press SPACE to catch at the right moment", width / 2, height / 2);
-    text("Land in the green zone when arms are closed", width / 2, height / 2 + 40);
+    text(
+      "Align the red dot with the horizontal arms",
+      width / 2,
+      height / 2 + 40
+    );
   }
 
   // Draw start button
   fill(30, 144, 255);
   rect(startButton.x, startButton.y, startButton.width, startButton.height, 10);
-  
+
   fill(255);
   textSize(min(32, width / 24));
   text("START", width / 2, startButton.y + startButton.height / 2);
-  
-  // Draw share button
-  let shareButtonY = startButton.y + startButton.height + 20;
-  fill(29, 161, 242); // Twitter blue
-  rect(width / 2 - startButton.width / 2, shareButtonY, startButton.width, 40, 10);
-  
+
+  // Draw leaderboard button
+  let leaderboardButtonY = startButton.y + startButton.height + 20;
+  fill(0, 128, 0); // Green color for leaderboard button
+  rect(
+    width / 2 - startButton.width / 2,
+    leaderboardButtonY,
+    startButton.width,
+    40,
+    10
+  );
+
   fill(255);
   textSize(smallTextSize);
-  text("Share Your Score on X", width / 2, shareButtonY + 20);
-  
-  // Handle keyboard input for desktop
+  text("View Leaderboard", width / 2, leaderboardButtonY + 20);
+
+  // Fix button click handling - use mousePressed instead of mouseIsPressed
+  if (mouseIsPressed) {
+    // Start button
+    if (
+      mouseX >= startButton.x &&
+      mouseX <= startButton.x + startButton.width &&
+      mouseY >= startButton.y &&
+      mouseY <= startButton.y + startButton.height
+    ) {
+      gameState = "play";
+    }
+
+    // Leaderboard button
+    if (
+      mouseX >= width / 2 - startButton.width / 2 &&
+      mouseX <= width / 2 + startButton.width / 2 &&
+      mouseY >= leaderboardButtonY &&
+      mouseY <= leaderboardButtonY + 40
+    ) {
+      fetchAndDisplayLeaderboard();
+      document.getElementById("leaderboardDisplay").style.display = "block";
+      showingLeaderboard = true;
+    }
+  }
+
+  // Handle keyboard input for desktop - allow arrow keys to start game
   if (!isMobile && keyIsPressed) {
-    gameState = "play";
+    if (
+      keyCode === ENTER ||
+      keyCode === 32 ||
+      keyCode === LEFT_ARROW ||
+      keyCode === RIGHT_ARROW
+    ) {
+      gameState = "play";
+    }
   }
 }
 
 /** Main gameplay loop */
 function playGame() {
+  // Reset space pressed state when game starts
+  if (frameCount === 1 || frameCount % 60 === 0) {
+    spacePressedThisRound = false;
+  }
+
   // Update wind force
   if (random() < 0.01) {
     windForce = random(-1, 1) * difficulty;
@@ -351,7 +604,7 @@ function playGame() {
       gameState = "gameOver";
     }
   }
-  
+
   // Handle mobile touch catch
   if (isMobile && touchCatch && !spacePressedThisRound) {
     spacePressedThisRound = true;
@@ -368,12 +621,14 @@ function playGame() {
     } else {
       gameState = "gameOver";
     }
-    
+
     touchCatch = false;
   }
 
-  if ((!isMobile && (!keyIsPressed || keyCode !== 32)) || 
-      (isMobile && !touchCatch)) {
+  if (
+    (!isMobile && (!keyIsPressed || keyCode !== 32)) ||
+    (isMobile && !touchCatch)
+  ) {
     spacePressedThisRound = false;
   }
 
@@ -386,12 +641,11 @@ function playGame() {
 function drawGameOver() {
   fill(255);
   textAlign(CENTER, CENTER);
-  
+
   // Responsive text sizes
   let titleSize = min(48, width / 16);
   let scoreSize = min(32, width / 24);
-  let instructionSize = min(24, width / 32);
-  
+
   textSize(titleSize);
   text("GAME OVER", width / 2, height / 3);
 
@@ -399,20 +653,8 @@ function drawGameOver() {
   text("Score: " + score, width / 2, height / 2 - 20);
   text("High Score: " + highScore, width / 2, height / 2 + 20);
 
-  textSize(instructionSize);
-  if (isMobile) {
-    text("Tap anywhere to restart", width / 2, height / 2 + 80);
-  } else {
-    text("Press any key to restart", width / 2, height / 2 + 80);
-  }
-
-  if (keyIsPressed && !isMobile) {
-    gameState = "title";
-    score = 0;
-    booster = new Booster();
-    arms.reset();
-  }
-  // We don't check touchCatch here since it's handled in handleTouchStart
+  // We don't show the "press any key to restart" text anymore
+  // since we're showing the leaderboard form instead
 }
 
 /** Landing Pad class */
@@ -438,7 +680,7 @@ class LandingPad {
     // Draw SpaceX-style landing pad
     let centerX = width / 2;
     let padWidth = width * 0.25;
-    
+
     fill(80);
     ellipse(centerX, this.y, padWidth, 10); // Center landing pad
 
@@ -461,16 +703,16 @@ class Arms {
     this.y = height * 0.5;
     this.height = 20; // Reduced height for cleaner look
     this.isOpen = true;
-    
+
     // Calculate positions based on screen width
     let centerX = width / 2;
     let openWidth = 75; // Reduced width by half for better aesthetics
-    
+
     this.leftX = centerX - openWidth; // Start position for left side
     this.rightX = centerX + openWidth; // Start position for right side
     this.targetLeftX = this.leftX;
     this.targetRightX = this.rightX;
-    
+
     // Closed position is near the pole
     this.closedLeftX = centerX - 20;
     this.closedRightX = centerX + 20;
@@ -574,9 +816,11 @@ class Booster {
 
     if (!isMobile) {
       // Desktop controls
-      if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) { // Left arrow or A key
+      if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
+        // Left arrow or A key
         this.x -= moveSpeed;
-      } else if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) { // Right arrow or D key
+      } else if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
+        // Right arrow or D key
         this.x += moveSpeed;
       }
     } else {
@@ -676,6 +920,34 @@ class Booster {
     for (let p of this.fireParticles) {
       fill(p.color[0], p.color[1], p.color[2], p.alpha);
       ellipse(p.x, p.y, p.size);
+    }
+  }
+}
+
+// Add a mousePressed function to handle button clicks more reliably
+function mousePressed() {
+  if (gameState === "title") {
+    // Start button
+    if (
+      mouseX >= startButton.x &&
+      mouseX <= startButton.x + startButton.width &&
+      mouseY >= startButton.y &&
+      mouseY <= startButton.y + startButton.height
+    ) {
+      gameState = "play";
+    }
+
+    // Leaderboard button
+    let leaderboardButtonY = startButton.y + startButton.height + 20;
+    if (
+      mouseX >= width / 2 - startButton.width / 2 &&
+      mouseX <= width / 2 + startButton.width / 2 &&
+      mouseY >= leaderboardButtonY &&
+      mouseY <= leaderboardButtonY + 40
+    ) {
+      fetchAndDisplayLeaderboard();
+      document.getElementById("leaderboardDisplay").style.display = "block";
+      showingLeaderboard = true;
     }
   }
 }
