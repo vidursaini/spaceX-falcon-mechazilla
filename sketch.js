@@ -226,44 +226,41 @@ function drawWindIndicator() {
   text("Wind: " + windDirection.repeat(ceil(windStrength)), 50, 110);
 }
 
-/** Draws the centered vertical pole */
+/** Draws the vertical pole in the center of the screen */
 function drawPole() {
-  // Start tower just above catch zone
-  let poleStartY = height * 0.4;
-  let poleWidth = width * 0.1;
-  let centerX = width / 2;
-  
   // Calculate pole dimensions
-  let poleLeftX = centerX - poleWidth / 2;
-  let poleRightX = centerX + poleWidth / 2;
-  let poleHeight = height - poleStartY - 20;
-
-  // Draw main tower structure
-  for (let i = 0; i < poleWidth; i++) {
-    let shade = map(i, 0, poleWidth, 100, 150);
-    fill(shade);
-    rect(poleLeftX + i, poleStartY, 2, poleHeight);
-  }
-
-  // Add structural details to make it look like launch tower
-  stroke(100);
-  strokeWeight(1);
+  const poleWidth = 20; // Fixed width for better aesthetics
+  const poleHeight = height * 0.7;
+  const poleLeftX = width / 2 - poleWidth / 2;
+  const poleRightX = poleLeftX + poleWidth;
   
-  // Cross beams - space them evenly
-  let beamSpacing = poleHeight / 8;
-  for (let y = poleStartY + beamSpacing; y < height - 20; y += beamSpacing) {
-    line(poleLeftX - 5, y, poleRightX + 5, y);
-    line(poleLeftX - 5, y + 10, poleRightX + 5, y + 10);
+  // Draw pole with gradient for 3D effect
+  push();
+  noStroke();
+  
+  // Main pole - coming from the bottom
+  fill(150);
+  rect(poleLeftX, height - poleHeight, poleWidth, poleHeight);
+  
+  // Highlight on left edge
+  fill(200);
+  rect(poleLeftX, height - poleHeight, 3, poleHeight);
+  
+  // Shadow on right edge
+  fill(100);
+  rect(poleRightX - 3, height - poleHeight, 3, poleHeight);
+  
+  // Add some details/rungs to the pole
+  fill(100);
+  for (let y = height - poleHeight + 50; y < height; y += 50) {
+    rect(poleLeftX - 5, y, poleWidth + 10, 5);
   }
-
-  // Vertical support lines
-  line(poleLeftX - 5, poleStartY, poleLeftX - 5, height - 20);
-  line(poleRightX + 5, poleStartY, poleRightX + 5, height - 20);
-
+  
   // Base structure
   fill(120);
   noStroke();
   rect(poleLeftX - 15, height - 20, poleWidth + 30, 20);
+  pop();
 }
 
 /** Displays the title screen with instructions */
@@ -467,7 +464,7 @@ class Arms {
     
     // Calculate positions based on screen width
     let centerX = width / 2;
-    let openWidth = width * 0.3;
+    let openWidth = 75; // Reduced width by half for better aesthetics
     
     this.leftX = centerX - openWidth; // Start position for left side
     this.rightX = centerX + openWidth; // Start position for right side
@@ -475,8 +472,8 @@ class Arms {
     this.targetRightX = this.rightX;
     
     // Closed position is near the pole
-    this.closedLeftX = centerX - width * 0.05;
-    this.closedRightX = centerX + width * 0.05;
+    this.closedLeftX = centerX - 20;
+    this.closedRightX = centerX + 20;
   }
 
   display() {
@@ -485,8 +482,8 @@ class Arms {
 
     // Animate arm movement
     if (this.isOpen) {
-      this.targetLeftX = width / 2 - width * 0.3; // Open position
-      this.targetRightX = width / 2 + width * 0.3; // Open position
+      this.targetLeftX = width / 2 - 75; // Open position with fixed width (half the previous width)
+      this.targetRightX = width / 2 + 75; // Open position with fixed width (half the previous width)
     } else {
       this.targetLeftX = this.closedLeftX; // Closed position
       this.targetRightX = this.closedRightX; // Closed position
@@ -522,7 +519,7 @@ class CatchZoneIndicator {
   constructor() {
     this.y = height * 0.5;
     this.height = 20; // Match arms height
-    this.width = width * 0.1;
+    this.width = 40; // Fixed width for better aesthetics
     this.x = width / 2 - this.width / 2;
   }
 
@@ -553,11 +550,11 @@ class CatchZoneIndicator {
 
 class Booster {
   constructor() {
-    // Make booster size relative to screen size
-    this.width = width * 0.06;
-    this.height = height * 0.4;
-    this.catchingOffset = this.height * 0.2; // Catching point at y + 20% (top half)
-    this.x = random(this.width, width - this.width * 2); // Random x-position at top
+    // Make booster size relative to screen size but maintain aesthetics
+    this.width = 50;
+    this.height = 250;
+    this.catchingOffset = 50; // Catching point at y + 50 (top half)
+    this.x = random(50, width - 100); // Random x-position at top
     this.y = -this.height; // Start above canvas
     this.vy = 2 + min(score * 0.15, 3); // Faster speed increase
     this.fireParticles = [];
@@ -599,9 +596,9 @@ class Booster {
     // Add new fire particles
     for (let i = 0; i < 3; i++) {
       this.fireParticles.push({
-        x: this.x + this.width / 2 + random(-this.width/3, this.width/3),
+        x: this.x + this.width / 2 + random(-15, 15),
         y: this.y + this.height,
-        size: random(this.width/10, this.width/3),
+        size: random(5, 15),
         vx: random(-0.5, 0.5),
         vy: random(2, 5),
         alpha: 255,
@@ -632,46 +629,49 @@ class Booster {
 
     // Draw booster body with SpaceX-style design
     fill(240); // White body like Falcon 9
-    rect(this.x, this.y, this.width, this.height - this.height/12); // Main body
+    rect(this.x, this.y, this.width, this.height - 20); // Main body
 
     // SpaceX logo
     fill(0);
-    textSize(max(12, this.width/4));
+    textSize(12);
     textAlign(CENTER);
-    text("SpaceX", this.x + this.width / 2, this.y + this.height/8);
+    text("SpaceX", this.x + this.width / 2, this.y + 30);
 
     // Draw details - black stripes like Falcon 9
     fill(30);
-    rect(this.x, this.y + this.height/5, this.width, this.height/25); // Black stripe
-    rect(this.x, this.y + this.height/2.5, this.width, this.height/25); // Another stripe
+    rect(this.x, this.y + 50, this.width, 10); // Black stripe
+    rect(this.x, this.y + 120, this.width, 10); // Black stripe
+    rect(this.x, this.y + 190, this.width, 10); // Black stripe
 
-    // Draw grid fins
-    fill(120);
-    // Left fin
-    rect(this.x - this.width/6, this.y + this.height/10, this.width/6, this.height/15);
-    // Right fin
-    rect(this.x + this.width, this.y + this.height/10, this.width/6, this.height/15);
-
-    // Draw landing legs (folded)
+    // Grid fins
     fill(80);
-    rect(this.x - this.width/10, this.y + this.height - this.height/12, this.width/10, this.height/12);
-    rect(this.x + this.width, this.y + this.height - this.height/12, this.width/10, this.height/12);
+    // Left grid fin
+    rect(this.x - 10, this.y + 60, 10, 30);
+    // Right grid fin
+    rect(this.x + this.width, this.y + 60, 10, 30);
+
+    // Draw engine section
+    fill(50); // Dark gray engines
+    rect(this.x - 10, this.y + this.height - 20, this.width + 20, 20); // Engine base
 
     // Draw engine nozzles
-    fill(150);
-    let nozzleWidth = this.width / 3;
-    let nozzleHeight = this.height / 15;
-    ellipse(this.x + this.width/2, this.y + this.height, nozzleWidth, nozzleHeight);
+    fill(30);
+    for (let i = -15; i <= 15; i += 10) {
+      ellipse(this.x + this.width / 2 + i, this.y + this.height - 10, 8, 8); // Nozzles
+    }
 
-    // Draw the red dot for catching point
-    fill(255, 0, 0);
-    ellipse(this.x + this.width/2, this.y + this.catchingOffset, 8, 8);
+    // Draw top interstage circle
+    fill(200);
+    ellipse(this.x + this.width / 2, this.y, 5, 5); // Top circle
 
     pop(); // Restore drawing state
+
+    // Draw catching point
+    fill(255, 0, 0); // Red
+    ellipse(this.x + this.width / 2, this.y + this.catchingOffset, 10, 10); // Catching marker
   }
 
   drawFireParticles() {
-    // Draw all fire particles
     noStroke();
     for (let p of this.fireParticles) {
       fill(p.color[0], p.color[1], p.color[2], p.alpha);
